@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resident Database Search</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        h2 {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .search-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            text-transform: uppercase;
+        }
+        .hint {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+        button {
+            background-color: #0056b3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #004494;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .not-found {
+            color: #d9534f;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="search-container">
+        <h2>Resident Data Search</h2>
+        <label for="codeInput">Enter Resident Codes:</label>
+        <input type="text" id="codeInput" placeholder="SIP/KEV/ABE/RAK...">
+        <p class="hint">Separate codes with a slash (/). Limit: 10 codes.</p>
+        <button onclick="searchResidents()">Search Database</button>
+    </div>
+
+    <div id="resultsArea"></div>
+
+    <script>
+        // Database Construction
+        const residentData = {
+            // POSTCHIEF
+            "TIR": { name: "Hening Tirta Kusumawardani", level: "POSTCHIEF" },
+            "ALI": { name: "Aliannor", level: "POSTCHIEF" },
+            "FAW": { name: "Anggita Fatwa", level: "POSTCHIEF" },
+            "ASH": { name: "Diena Ashlihati", level: "POSTCHIEF" },
+            "AIL": { name: "Ismail Hasan", level: "POSTCHIEF" },
+            "JAT": { name: "Sudjati Adhinugroho", level: "POSTCHIEF" },
+            "TIK": { name: "Atika Rachmi", level: "POSTCHIEF" },
+            "EBY": { name: "Deby Aulia Rahmi", level: "POSTCHIEF" },
+            "UZI": { name: "Fauzi Agung Nugroho", level: "POSTCHIEF" },
+            "QIH": { name: "Muhammad Fiqih Hidayat", level: "POSTCHIEF" },
+            "SIR": { name: "Nashiruddin", level: "POSTCHIEF" },
+            "NUS": { name: "Stefanus Danan Nugroho", level: "POSTCHIEF" },
+            "TEP": { name: "Stephanie Sutrisno", level: "POSTCHIEF" },
+            "ILY": { name: "Willy Irawan", level: "POSTCHIEF" },
+            "ZUL": { name: "Zulqaidandy Rahman", level: "POSTCHIEF" },
+            "MII": { name: "Fatmi Eka Putri", level: "POSTCHIEF" },
+            
+            // R7
+            "ARE": { name: "Arliestianto Noor Eka Putra", level: "R7" },
+            "YUV": { name: "Ayuvy Monzalitza", level: "R7" },
+            "SIA": { name: "Christine Tirza Thresia Jitmau", level: "R7" },
+            "DHI": { name: "Dhita Budi Wibowo", level: "R7" },
+            "EMA": { name: "Emanuel Yan Daniel Prabowo", level: "R7" },
+            "SEN": { name: "Ezra Senna Pradesya", level: "R7" },
+            "KEN": { name: "Iken Agustina", level: "R7" },
+            "REV": { name: "Irvan Revaldi Loho", level: "R7" }, // Note: Appears in Postchief and R7, latest entry prioritized
+            "MAW": { name: "Jaka Hermawan", level: "R7" },
+            "MAD": { name: "Muhammad Syarif Nurdianto", level: "R7" },
+            "THA": { name: "Nathanael Jaya Bimastani", level: "R7" },
+            "NOU": { name: "Noufal Riandi Khairul", level: "R7" },
+            "SWA": { name: "Raden Sureswara Agrawijaya", level: "R7" },
+            "LIT": { name: "Talitha Azalia", level: "R7" },
+            "LUS": { name: "Tulus Sihotang", level: "R7" },
+            "KIR": { name: "Yusuf Kirana Raksawardana", level: "R7" },
+
+            // R6
+            "FIZ": { name: "Al Hafiz Aidil Pakpahan", level: "R6" },
+            "NAT": { name: "Anggara Aprinata Widyawan", level: "R6" },
+            "AAF": { name: "Ari Afandi", level: "R6" },
+            "ULA": { name: "Arvy Maula Maryani", level: "R6" },
+            "DIM": { name: "Dimaz Prabu Ginanjar Setiadi", level: "R6" },
+            "IAH": { name: "Indah Novianty", level: "R6" },
+            "ENA": { name: "Radyan Pramono Sri Rena Kusdiyono", level: "R6" },
+            "UTH": { name: "Ruth Devi Numberi", level: "R6" },
+            "MON": { name: "Ruth Monica Br Mangunsong", level: "R6" },
+            "FIA": { name: "Sofia Zachra Faiza", level: "R6" },
+            "TUT": { name: "Sri Wydiastuti", level: "R6" },
+            "PRA": { name: "Tito Novrian Pratama", level: "R6" },
+            "ZAC": { name: "Zacky Aulia Mursi", level: "R6" },
+
+            // R5
+            "END": { name: "Hendrian Ade Hardianto", level: "R5" },
+            "VIN": { name: "Alvina Carolina BS", level: "R5" },
+            "ATI": { name: "Atika Putri Pertiwi", level: "R5" },
+            "ISS": { name: "Danissa Fidia Puteri", level: "R5" },
+            "GHE": { name: "Ghenta Ajuskri Pratama", level: "R5" },
+            "HAF": { name: "Hafidh Awwal", level: "R5" },
+            "IIN": { name: "Iin Suryanti", level: "R5" },
+            "FIT": { name: "Khozatin Zuni Fitmawati", level: "R5" },
+            "IZY": { name: "Muhammad Rizky Sofyan", level: "R5" },
+            "NUP": { name: "Nurprianto", level: "R5" },
+            "ABO": { name: "Prayogo Budhi Prabowo", level: "R5" },
+            "RAD": { name: "Rahmad Dui Wahyudi", level: "R5" },
+            "RON": { name: "Ronaldo", level: "R5" },
+            "RUD": { name: "Rudi Ardian Saputra", level: "R5" },
+            "AUL": { name: "Sanggiani Diah Aulia", level: "R5" },
+            "STA": { name: "Shianita Stanie", level: "R5" },
+
+            // R4
+            "ELA": { name: "Apsopela Sandivera", level: "R4" },
+            "ARO": { name: "Ario Sagaskara Kumudhajati", level: "R4" },
+            "AUM": { name: "Arum Pamungkas", level: "R4" },
+            "RAS": { name: "Mochammad Rasyiid Ash Shiddieqy", level: "R4" },
+            "ZUH": { name: "Mochammad Zuhrul Balad Rosadi", level: "R4" },
+            "IBA": { name: "Muhammad Iqbal Mahfud", level: "R4" },
+            "RYA": { name: "Muhammad Ryan Radifan Gustisiya", level: "R4" },
+            "OKA": { name: "Okky Alfian Fatchrojiono", level: "R4" },
+            "PMA": { name: "Primadhy Rahardian Wijaya", level: "R4" },
+            "HAD": { name: "Rahadian Arista Dhata", level: "R4" },
+            "RAK": { name: "Raky Nara Swari", level: "R4" },
+            "RAT": { name: "Ratna Sari Pratiwi", level: "R4" },
+            "RAR": { name: "Rini Maysarah Bantilan", level: "R4" },
+            "INO": { name: "Sutrisno", level: "R4" },
+            "ZKI": { name: "Zaki Dewantoro", level: "R4" },
+            "ODI": { name: "Sondi Valentinus Lumban Batu", level: "R4" },
+            "UPA": { name: "Ulfah S. Madamar", level: "R4" },
+            "YUS": { name: "Yusuf Rumbiak", level: "R4" },
+
+            // R3
+            "ABE": { name: "Abetius Wenda", level: "R3" },
+            "GUS": { name: "Agus Eko Radittyanto", level: "R3" },
+            "TOS": { name: "Dedy Santoso", level: "R3" },
+            "PAS": { name: "Dwi Prasetyo Nugroho", level: "R3" },
+            "BEL": { name: "Dwina Agrila Lakabela", level: "R3" },
+            "DUL": { name: "Fahmy Abdul Haq", level: "R3" },
+            "SIP": { name: "Helni Sipayung", level: "R3" },
+            "JIF": { name: "Jifani Rasyad", level: "R3" },
+            "KAL": { name: "Kalam Majid Biruni", level: "R3" },
+            "BAR": { name: "M. Silahul Jabbar As Siddiq", level: "R3" },
+            "SID": { name: "M. Shiddiq Dwisurya", level: "R3" },
+            "EGY": { name: "Peggy Rahmat Syahputra", level: "R3" },
+            "PUR": { name: "Purbo Prawiro Budiharjo", level: "R3" },
+            "TOM": { name: "Tomy Resky Sandriya", level: "R3" },
+            "IJI": { name: "Ratna Sari Pratiwi", level: "R3" }, // Unique code IJI in source
+
+            // R2
+            "HBS": { name: "Hasbi Bagas Wasisto", level: "R2" },
+            "HRY": { name: "Harry Salomo", level: "R2" },
+            "HNA": { name: "Hananya Dwi Anggi Manurung", level: "R2" },
+            "AJI": { name: "R. Suseno Aji", level: "R2" },
+            "VNI": { name: "Vania Valentina", level: "R2" },
+            "HAS": { name: "Ihsan Hamdani", level: "R2" },
+            "FUZ": { name: "Ahmad Fauzi", level: "R2" },
+            "DST": { name: "Adisty Chandra", level: "R2" },
+            "RAF": { name: "Siti Arafah Nasrullah", level: "R2" },
+            "KEV": { name: "Kevin Darmawan", level: "R2" },
+            "AGM": { name: "Agam Meureza Prabowo", level: "R2" },
+            "KIN": { name: "MHD Rizky Nanda", level: "R2" },
+            "NDO": { name: "Nando Rosiarto Aswin", level: "R2" },
+            "RND": { name: "Rendy Kurniawan", level: "R2" },
+            "AFD": { name: "Muhammad Afid Fitrah", level: "R2" },
+
+            // R1
+            "JAN": { name: "Jihan Febrianto", level: "R1" },
+            "AGG": { name: "Aditya Bagas Caswita", level: "R1" },
+            "DRE": { name: "Andre Krislee", level: "R1" },
+            "LIA": { name: "Aulia Zuhria Rahma", level: "R1" },
+            "DNE": { name: "Daniel Aprianto Sihotang", level: "R1" },
+            "ION": { name: "Dionisia Setya Putri", level: "R1" },
+            "FEB": { name: "Febri Anriyani", level: "R1" },
+            "PTU": { name: "I Putu Bagus Hermawan", level: "R1" },
+            "INI": { name: "Isni Mellasari", level: "R1" },
+            "MAH": { name: "Mahyati Sari Zulfa", level: "R1" },
+            "RZK": { name: "Muhammad Rizki Febrianto", level: "R1" },
+            "MUS": { name: "Mustika Rizky Putri Nathasya", level: "R1" },
+            "RZN": { name: "Rizkan Triatmaja", level: "R1" },
+            "WHU": { name: "Wahyu Cipto Utomo", level: "R1" },
+            "IRF": { name: "Irfan Ramadhannoor", level: "R1" }
+        };
+
+        function searchResidents() {
+            const input = document.getElementById('codeInput').value;
+            if (!input) return;
+
+            // Split, trim, remove empty, take max 10
+            const codes = input.split('/')
+                .map(code => code.trim().toUpperCase())
+                .filter(code => code.length > 0)
+                .slice(0, 10);
+
+            let html = '<table><thead><tr><th>Code</th><th>Full Name</th><th>Level</th></tr></thead><tbody>';
+
+            codes.forEach(code => {
+                const resident = residentData[code];
+                if (resident) {
+                    html += `<tr>
+                        <td><strong>${code}</strong></td>
+                        <td>${resident.name}</td>
+                        <td><span style="background:#e8f0fe; color:#1a73e8; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.9em;">${resident.level}</span></td>
+                    </tr>`;
+                } else {
+                    html += `<tr>
+                        <td><strong>${code}</strong></td>
+                        <td class="not-found">Unknown/Not Found</td>
+                        <td>-</td>
+                    </tr>`;
+                }
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('resultsArea').innerHTML = html;
+        }
+
+        // Trigger search on Enter key
+        document.getElementById("codeInput").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                searchResidents();
+            }
+        });
+    </script>
+
+</body>
+</html>
