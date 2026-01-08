@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vasoactive Agent Calculator</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --light: #f4f7f6;
+            --border: #bdc3c7;
+            --header-bg: #34495e;
+            --spacing: 10px;
+        }
+
+        /* LAYOUT MODEL: RESET & BODY */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: var(--spacing);
+            width: 100vw;
+            background-color: var(--light);
+            color: #333;
+            font-size: 14px;
+            overflow-x: hidden; /* Prevent horizontal scroll triggers */
+            padding-bottom: 60px; /* Space for sticky footer */
+        }
+
+        /* REMOVED .container, max-width, margin: auto */
+        
+        /* SECTION MODEL: DETAILS & SUMMARY */
+        details {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: var(--spacing);
+            overflow: hidden;
+            transition: all 0.3s ease-out;
+        }
+
+        summary {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            list-style: none; /* Remove default arrow */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        summary::after {
+            content: '+';
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        details[open] summary::after {
+            content: '-';
+        }
+
+        details[open] summary {
+            border-bottom: 1px solid var(--border);
+            background-color: var(--accent);
+        }
+
+        .content-wrapper {
+            padding: 15px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* GRID SYSTEM */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            width: 100%;
+        }
+
+        /* INPUT STYLES */
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        /* DRUG & RESULT TABLES */
+        .drug-card {
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+
+        .drug-header {
+            background: #ecf0f1;
+            padding: 8px;
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.9rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .drug-meta {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            padding: 4px 8px;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 6px 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: #f9f9f9;
+            color: #555;
+        }
+
+        .highlight-val {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* RESULT COMPONENT: STICKY BAR */
+        #resultBar {
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            padding: 12px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none; /* Initially hidden */
+            font-size: 0.9rem;
+            text-align: center;
+            border-top: 3px solid var(--accent);
+        }
+
+        .rb-content {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-weight: 500;
+        }
+
+        .rb-val {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        /* Anticoagulation Specifics */
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .result-row:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+
+    <details id="sect-patient" open>
+        <summary>Patient Parameters</summary>
+        <div class="content-wrapper">
+            <div class="grid-container">
+                <div class="input-wrapper">
+                    <label>Nama Pasien</label>
+                    <input type="text" id="vpName" placeholder="-">
+                </div>
+                <div class="input-wrapper">
+                    <label>Umur (Thn)</label>
+                    <input type="number" id="vpAge" placeholder="-">
+                </div>
+                <div class="input-wrapper">
+                    <label>Berat (kg)</label>
+                    <input type="number" id="vpWeight" value="60" oninput="handleInteraction()">
+                </div>
+                <div class="input-wrapper">
+                    <label>Tinggi (cm)</label>
+                    <input type="number" id="vpHeight" value="170" oninput="handleInteraction()">
+                </div>
+                <div class="input-wrapper">
+                    <label>BMI (kg/m²)</label>
+                    <input type="text" id="vpBMI" readonly disabled>
+                </div>
+                <div class="input-wrapper">
+                    <label>BSA (m²)</label>
+                    <input type="text" id="vpBSA" readonly disabled>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <details id="sect-anticoag">
+        <summary>Anticoagulation (CPB)</summary>
+        <div class="content-wrapper">
+            <div class="result-row">
+                <span>Heparin (BB x 3)</span>
+                <span id="resHeparin" class="highlight-val">-</span>
+            </div>
+            <div class="result-row">
+                <span>Protamin (Hep x 1.25)</span>
+                <span id="resProtamin" class="highlight-val">-</span>
+            </div>
+            <div class="result-row">
+                <span>Protamin Add (Hep x 1.5)</span>
+                <span id="resProtaminAdd" class="highlight-val">-</span>
+            </div>
+        </div>
+    </details>
+
+    <details id="sect-drugs">
+        <summary>Vasoactive Infusions</summary>
+        <div class="content-wrapper">
+            <div id="drugGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                </div>
+        </div>
+    </details>
+
+    <div id="resultBar">
+        <div class="rb-content">
+            <span>BB: <span id="stickyWeight" class="rb-val">-</span> kg</span>
+            <span>BSA: <span id="stickyBSA" class="rb-val">-</span> m²</span>
+        </div>
+    </div>
+
+<script>
+    // --- BUSINESS LOGIC (PRESERVED) ---
+    const vasoDrugs = [
+        { name: "Noradrenalin / Vascon", prep: "4 mg / 50 cc", conc: 80, steps: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] }, // Modified start slightly for typical range
+        { name: "Nitroglycerin (NTG)", prep: "50 mg / 50 cc", conc: 1000, steps: [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5] },
+        { name: "Dobutamin (Dobuject) 250", prep: "250 mg / 50 cc", conc: 5000, steps: [3, 5, 7.5, 10, 12.5, 15, 17.5, 20] },
+        { name: "Dopamin (Indop)", prep: "200 mg / 50 cc", conc: 4000, steps: [3, 5, 7.5, 10, 12.5, 15, 17.5, 20] },
+        { name: "Milrinon", prep: "20 mg / 50 cc", conc: 400, steps: [0.375, 0.5, 0.75, 1, 1.25, 1.5] },
+        { name: "Dobutamin (Dobuject) 500", prep: "500 mg / 50 cc", conc: 10000, steps: [3, 5, 7.5, 10, 12.5, 15, 17.5, 20] }
+    ];
+
+    function calculateVaso() {
+        const weight = parseFloat(document.getElementById('vpWeight').value) || 0;
+        const height = parseFloat(document.getElementById('vpHeight').value) || 0;
+
+        // BMI & BSA
+        let bmi = 0;
+        let bsa = 0;
+        if (weight > 0 && height > 0) {
+            const heightM = height / 100;
+            bmi = weight / (heightM * heightM);
+            bsa = 0.007184 * Math.pow(weight, 0.425) * Math.pow(height, 0.725);
+        }
+        
+        // Update DOM inputs
+        document.getElementById('vpBMI').value = bmi > 0 ? bmi.toFixed(2) : "-";
+        document.getElementById('vpBSA').value = bsa > 0 ? bsa.toFixed(2) : "-";
+        
+        // Update Sticky Bar
+        document.getElementById('stickyWeight').innerText = weight;
+        document.getElementById('stickyBSA').innerText = bsa > 0 ? bsa.toFixed(2) : "-";
+
+        // Anticoagulation
+        const heparin = weight * 3;
+        document.getElementById('resHeparin').innerText = weight > 0 ? heparin.toFixed(0) + " mg" : "-";
+        document.getElementById('resProtamin').innerText = weight > 0 ? (heparin * 1.25).toFixed(0) + " mg" : "-";
+        document.getElementById('resProtaminAdd').innerText = weight > 0 ? (heparin * 1.5).toFixed(0) + " mg" : "-";
+
+        renderVasoGrid(weight);
+    }
+
+    function renderVasoGrid(weight) {
+        const grid = document.getElementById('drugGrid');
+        grid.innerHTML = '';
+
+        vasoDrugs.forEach(drug => {
+            let rows = '';
+            drug.steps.forEach(dose => {
+                const rate = weight > 0 ? (dose * weight * 60) / drug.conc : 0;
+                rows += `
+                    <tr>
+                        <td>${dose}</td>
+                        <td class="highlight-val">${rate > 0 ? rate.toFixed(1) : "-"}</td>
+                    </tr>
+                `;
+            });
+
+            const card = document.createElement('div');
+            card.className = 'drug-card';
+            card.innerHTML = `
+                <div class="drug-header">${drug.name}</div>
+                <div class="drug-meta">${drug.prep} (${drug.conc} mcg/cc)</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Dose (mcg/kg/min)</th>
+                            <th>Rate (cc/hr)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // --- INTERACTION MODEL & ACCORDION LOGIC ---
+    
+    // 1. Accordion Logic: Ensure only one is open
+    const allDetails = document.querySelectorAll('details');
+    allDetails.forEach((targetDetail) => {
+        targetDetail.addEventListener('click', (e) => {
+            // Only trigger if clicking summary
+            if (e.target.tagName.toLowerCase() !== 'summary') return; 
+
+            // Close others
+            allDetails.forEach((detail) => {
+                if (detail !== targetDetail) {
+                    detail.removeAttribute('open');
+                }
+            });
+            // Browser handles opening the clicked one automatically
+        });
+    });
+
+    // 2. Interaction Handler
+    let hasInteracted = false;
+    function handleInteraction() {
+        calculateVaso();
+        
+        if (!hasInteracted) {
+            hasInteracted = true;
+            const bar = document.getElementById('resultBar');
+            bar.style.display = 'block';
+            
+            // Force scroll height recalculation if needed by parent iframe observers
+            // (Implicitly handled by changing display property and DOM expansion)
+        }
+    }
+
+    // Init
+    calculateVaso();
+</script>
+
+</body>
+</html>
