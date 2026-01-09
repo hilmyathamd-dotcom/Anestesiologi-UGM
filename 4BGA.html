@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BGA Interpreter</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --light: #ecf0f1;
+            --border: #bdc3c7;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #c0392b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            font-size: 14px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin-top: 0;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+        }
+        
+        /* Input Section */
+        .section-title {
+            background-color: var(--primary);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 10px;
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .parse-btn {
+            background-color: var(--success);
+            color: white;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+        .parse-btn:hover { opacity: 0.9; }
+
+        /* Manual Input Grid */
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+        .input-wrapper label {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #7f8c8d;
+            margin-bottom: 4px;
+        }
+        .input-wrapper input {
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        /* Results */
+        .result-box {
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #fff;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        .result-row:last-child { border-bottom: none; }
+        .res-label { font-weight: 500; color: #555; }
+        .res-val { font-weight: bold; color: var(--primary); }
+        .res-note { font-size: 0.85rem; color: #7f8c8d; font-style: italic; display: block; margin-top: 2px;}
+
+        .interpretation-main {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--accent);
+            padding: 10px;
+            background: #e8f4fc;
+            border-left: 5px solid var(--accent);
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        /* Mnemonics Accordion */
+        details {
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        summary {
+            background: var(--light);
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .mnemonic-content {
+            padding: 15px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            background: white;
+        }
+        ul { margin: 0; padding-left: 20px; }
+        
+        /* Status Colors */
+        .acid { color: var(--danger); }
+        .alk { color: var(--primary); /* Blueish for Alk */ }
+        .normal { color: var(--success); }
+        
+        .warn-text { color: var(--danger); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>BGA Interpretation Calculator</h1>
+
+    <div class="controls">
+        <div class="toggle-btn active" id="btnAcute" onclick="setChronicity('acute')">Acute</div>
+        <div class="toggle-btn" id="btnChronic" onclick="setChronicity('chronic')">Chronic</div>
+    </div>
+    <div class="controls">
+        <div class="toggle-btn active" id="btnAlbNorm" onclick="setAlbuminState('normal')">Albumin ≥ 4</div>
+        <div class="toggle-btn" id="btnAlbLow" onclick="setAlbuminState('low')">Albumin &lt; 4</div>
+    </div>
+
+    <div class="section-title">1. Paste BGA Result</div>
+    <textarea id="rawInput" placeholder="Paste raw BGA text here (from PDF or EMR)..."></textarea>
+    <button class="parse-btn" onclick="processInput()">Analyze Blood Gas</button>
+
+    <div class="section-title">2. Verify / Edit Values</div>
+    <div class="input-grid">
+        <div class="input-wrapper"><label>pH</label><input type="number" step="0.01" id="in_pH" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>PaCO2 (mmHg)</label><input type="number" step="0.1" id="in_pco2" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>HCO3 (mEq/L)</label><input type="number" step="0.1" id="in_hco3" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>Na+ (mEq/L)</label><input type="number" step="0.1" id="in_na" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>K+ (mEq/L)</label><input type="number" step="0.1" id="in_k" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>Cl- (mEq/L)</label><input type="number" step="0.1" id="in_cl" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>Albumin (g/dL)</label><input type="number" step="0.1" id="in_alb" value="4.0" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>Lactate (mmol/L)</label><input type="number" step="0.1" id="in_lac" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>PaO2 (mmHg)</label><input type="number" step="0.1" id="in_po2" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>FiO2 (0.21-1.0)</label><input type="number" step="0.01" id="in_fio2" value="0.21" oninput="runCalc()"></div>
+        <div class="input-wrapper"><label>Base Excess</label><input type="number" step="0.1" id="in_be" oninput="runCalc()"></div>
+    </div>
+
+    <div class="section-title">3. Interpretation</div>
+    
+    <div id="interpretationBox" class="interpretation-main">
+        Waiting for data...
+    </div>
+
+    <div class="result-box">
+        <h4>Extracted Parameters</h4>
+        <div class="result-row"><span class="res-label">pH Status</span><span id="out_ph_status" class="res-val">-</span></div>
+        <div class="result-row"><span class="res-label">PaO2 / FiO2 Ratio</span><span id="out_pf_ratio" class="res-val">-</span></div>
+        <div class="result-row"><span class="res-label">Anion Gap (Calc)</span><span id="out_ag" class="res-val">-</span></div>
+        <div class="result-row"><span class="res-label">Corrected AG (Alb)</span><span id="out_ag_corr" class="res-val">-</span></div>
+        <div class="result-row"><span class="res-label">Delta Ratio</span><span id="out_delta" class="res-val">-</span></div>
+    </div>
+
+    <div class="result-box">
+        <h4>Detailed Compensation Analysis</h4>
+        <div id="compAnalysis">
+            <div class="res-note">No primary disorder identified yet.</div>
+        </div>
+    </div>
+
+    <div class="section-title">Differential Diagnosis (Mnemonics)</div>
+    
+    <details id="mnem_hagma">
+        <summary>High Anion Gap Metabolic Acidosis (CAT MUDPILES)</summary>
+        <div class="mnemonic-content">
+            <ul>
+                <li><strong>C</strong> - CO, Cyanide, CHF</li>
+                <li><strong>A</strong> - Aminoglycosides, Arsenic</li>
+                <li><strong>T</strong> - Theophylline, Toluene</li>
+                <li><strong>M</strong> - Methanol</li>
+                <li><strong>U</strong> - Uremia (Renal Failure)</li>
+                <li><strong>D</strong> - DKA, AKA, Starvation Ketoacidosis</li>
+                <li><strong>P</strong> - Paracetamol, Phenformin, Propylene Glycol</li>
+                <li><strong>I</strong> - Iron, Isoniazid, IEM</li>
+                <li><strong>L</strong> - Lactic Acidosis</li>
+                <li><strong>E</strong> - Ethanol, Ethylene Glycol</li>
+                <li><strong>S</strong> - Salicylates (Aspirin)</li>
+            </ul>
+        </div>
+    </details>
+
+    <details id="mnem_nagma">
+        <summary>Normal Anion Gap Metabolic Acidosis (USED CARP)</summary>
+        <div class="mnemonic-content">
+            <ul>
+                <li><strong>U</strong> - Uretero-sigmoidostomy</li>
+                <li><strong>S</strong> - Saline (Hyperchloremic)</li>
+                <li><strong>E</strong> - Endocrine (Addison's, Hyperparathyroid)</li>
+                <li><strong>D</strong> - Diarrhea / GI Losses</li>
+                <li><strong>C</strong> - Carbonic Anhydrase Inhibitors (Acetazolamide)</li>
+                <li><strong>A</strong> - Ammonium Chloride / TPN</li>
+                <li><strong>R</strong> - Renal Tubular Acidosis (RTA)</li>
+                <li><strong>P</strong> - Pancreatic Fistula</li>
+            </ul>
+        </div>
+    </details>
+
+</div>
+
+<script>
+    // State
+    let isChronic = false;
+    let isLowAlbumin = false;
+
+    // --- 1. UI Logic ---
+    function setChronicity(type) {
+        isChronic = (type === 'chronic');
+        document.getElementById('btnAcute').className = isChronic ? 'toggle-btn' : 'toggle-btn active';
+        document.getElementById('btnChronic').className = isChronic ? 'toggle-btn active' : 'toggle-btn';
+        runCalc();
+    }
+
+    function setAlbuminState(type) {
+        isLowAlbumin = (type === 'low');
+        document.getElementById('btnAlbNorm').className = isLowAlbumin ? 'toggle-btn' : 'toggle-btn active';
+        document.getElementById('btnAlbLow').className = isLowAlbumin ? 'toggle-btn active' : 'toggle-btn';
+        
+        // Auto-adjust albumin input value for convenience
+        const albInput = document.getElementById('in_alb');
+        if(isLowAlbumin && parseFloat(albInput.value) >= 4) albInput.value = "3.0";
+        if(!isLowAlbumin && parseFloat(albInput.value) < 4) albInput.value = "4.0";
+        runCalc();
+    }
+
+    // --- 2. Parsing Logic ---
+    function processInput() {
+        const text = document.getElementById('rawInput').value;
+        if (!text) return;
+
+        // Regex patterns to capture values. 
+        // Handles "Label: Value", "Label Value", "Label \n Value"
+        // Prioritizes non-(t) values if duplicates exist
+        const patterns = {
+            ph: /(?:pH(?!\s*\(t\)))\s*[:=]?\s*(\d+\.?\d*)/i,
+            pco2: /(?:pCO2(?!\s*\(t\))|PaCO2)\s*[:=]?\s*(\d+\.?\d*)/i,
+            po2: /(?:pO2(?!\s*\(t\))|PaO2)\s*[:=]?\s*(\d+\.?\d*)/i,
+            hco3: /(?:HCO3|cHCO3\s*-\s*\(st\))\s*[:=]?\s*(\d+\.?\d*)/i,
+            na: /Na\+?\s*[:=]?\s*(\d+\.?\d*)/i,
+            k: /K\+?\s*[:=]?\s*(\d+\.?\d*)/i,
+            cl: /Cl-?\s*[:=]?\s*(\d+\.?\d*)/i,
+            alb: /Albumin\s*[:=]?\s*(\d+\.?\d*)/i,
+            lac: /(?:Lactat|Lactate)\s*[:=]?\s*(\d+\.?\d*)/i,
+            fio2: /FIO2\s*[:=]?\s*(\d+\.?\d*)/i,
+            be: /BE(?!\s*ecf)\s*[:=]?\s*(-?\d+\.?\d*)/i
+        };
+
+        // Helper to extract
+        const extract = (regex) => {
+            const match = text.match(regex);
+            return match ? match[1] : null;
+        };
+
+        const v = {
+            ph: extract(patterns.ph),
+            pco2: extract(patterns.pco2),
+            po2: extract(patterns.po2),
+            hco3: extract(patterns.hco3),
+            na: extract(patterns.na),
+            k: extract(patterns.k),
+            cl: extract(patterns.cl),
+            alb: extract(patterns.alb),
+            lac: extract(patterns.lac),
+            fio2: extract(patterns.fio2),
+            be: extract(patterns.be)
+        };
+
+        // Populate fields (only if found)
+        if(v.ph) document.getElementById('in_ph').value = v.ph;
+        if(v.pco2) document.getElementById('in_pco2').value = v.pco2;
+        if(v.hco3) document.getElementById('in_hco3').value = v.hco3;
+        if(v.na) document.getElementById('in_na').value = v.na;
+        if(v.k) document.getElementById('in_k').value = v.k;
+        if(v.cl) document.getElementById('in_cl').value = v.cl;
+        if(v.alb) document.getElementById('in_alb').value = v.alb;
+        if(v.lac) document.getElementById('in_lac').value = v.lac;
+        if(v.po2) document.getElementById('in_po2').value = v.po2;
+        if(v.be) document.getElementById('in_be').value = v.be;
+        
+        // FiO2 logic: some machines give %, some decimal
+        if(v.fio2) {
+            let f = parseFloat(v.fio2);
+            if(f > 1) f = f / 100; // Convert 21 -> 0.21
+            document.getElementById('in_fio2').value = f;
+        }
+
+        // Auto set Albumin toggle
+        if (v.alb) {
+            if (parseFloat(v.alb) < 4.0) setAlbuminState('low');
+            else setAlbuminState('normal');
+        }
+
+        runCalc();
+    }
+
+    // --- 3. Calculation & Interpretation ---
+    function runCalc() {
+        // Get Values
+        const val = (id) => {
+            const el = document.getElementById(id);
+            return el && el.value ? parseFloat(el.value) : null;
+        };
+
+        const pH = val('in_ph');
+        const pCO2 = val('in_pco2');
+        const HCO3 = val('in_hco3');
+        const Na = val('in_na');
+        const Cl = val('in_cl');
+        const Alb = val('in_alb') || 4.0;
+        const PaO2 = val('in_po2');
+        const FiO2 = val('in_fio2');
+        
+        // --- Step 1: pH Status ---
+        let pHStatus = "Normal";
+        if (pH < 7.35) pHStatus = "Acidemia";
+        else if (pH > 7.45) pHStatus = "Alkalemia";
+        
+        document.getElementById('out_ph_status').innerText = pHStatus;
+        if(pHStatus === "Acidemia") document.getElementById('out_ph_status').className = "res-val acid";
+        else if(pHStatus === "Alkalemia") document.getElementById('out_ph_status').className = "res-val alk";
+        else document.getElementById('out_ph_status').className = "res-val normal";
+
+        // --- P/F Ratio ---
+        if (PaO2 && FiO2) {
+            const pf = (PaO2 / FiO2).toFixed(0);
+            document.getElementById('out_pf_ratio').innerText = pf + (pf < 300 ? " (ALI/ARDS Range)" : "");
+        } else {
+            document.getElementById('out_pf_ratio').innerText = "-";
+        }
+
+        // --- Step 2: Primary Disorders (Boolean Checks) ---
+        // Step 2 logic: Conflict handling not error, just identification
+        // We identify components independently
+        let isMetAcid = (HCO3 !== null && HCO3 < 22);
+        let isMetAlk = (HCO3 !== null && HCO3 > 26);
+        let isRespAcid = (pCO2 !== null && pCO2 > 45);
+        let isRespAlk = (pCO2 !== null && pCO2 < 35);
+
+        // --- Step 3: Compensation ---
+        let compHTML = "";
+        let primaryDiagnoses = [];
+
+        // Identify Primary based on pH direction (if abnormal)
+        if (pHStatus === "Acidemia") {
+            if (isRespAcid && isMetAcid) primaryDiagnoses.push("Mixed Respiratory & Metabolic Acidosis");
+            else if (isRespAcid) primaryDiagnoses.push("Respiratory Acidosis");
+            else if (isMetAcid) primaryDiagnoses.push("Metabolic Acidosis");
+            else primaryDiagnoses.push("Acidemia (Uncompensated/Normal Variants)");
+        } else if (pHStatus === "Alkalemia") {
+            if (isRespAlk && isMetAlk) primaryDiagnoses.push("Mixed Respiratory & Metabolic Alkalosis");
+            else if (isRespAlk) primaryDiagnoses.push("Respiratory Alkalosis");
+            else if (isMetAlk) primaryDiagnoses.push("Metabolic Alkalosis");
+            else primaryDiagnoses.push("Alkalemia (Uncompensated/Normal Variants)");
+        } else {
+            // Normal pH but possible mixed
+            if (isRespAcid && isMetAlk) primaryDiagnoses.push("Mixed Resp. Acidosis & Met. Alkalosis");
+            else if (isRespAlk && isMetAcid) primaryDiagnoses.push("Mixed Resp. Alkalosis & Met. Acidosis");
+            else primaryDiagnoses.push("Normal Acid-Base Status");
+        }
+
+        // A. Metabolic Acidosis Compensation (Winter's)
+        if (isMetAcid && pCO2 !== null) {
+            const expPCO2 = (1.5 * HCO3) + 8;
+            const rangeMin = expPCO2 - 2;
+            const rangeMax = expPCO2 + 2;
+            
+            compHTML += `<p><strong>Metabolic Acidosis (Winter's Formula):</strong><br>`;
+            compHTML += `Expected PaCO2: ${rangeMin.toFixed(1)} - ${rangeMax.toFixed(1)} mmHg.<br>`;
+            
+            if (pCO2 < rangeMin) {
+                compHTML += `<span class="alk">Concomitant Respiratory Alkalosis</span> (PaCO2 ${pCO2} < Expected).`;
+                if(!primaryDiagnoses.join().includes("Respiratory Alkalosis")) primaryDiagnoses.push("Concomitant Respiratory Alkalosis");
+            } else if (pCO2 > rangeMax) {
+                compHTML += `<span class="acid">Concomitant Respiratory Acidosis</span> (PaCO2 ${pCO2} > Expected).`;
+                if(!primaryDiagnoses.join().includes("Respiratory Acidosis")) primaryDiagnoses.push("Concomitant Respiratory Acidosis");
+            } else {
+                compHTML += `<span class="normal">Compensated</span> (PaCO2 within expected range).`;
+            }
+            compHTML += `</p>`;
+        }
+
+        // B. Metabolic Alkalosis Compensation
+        if (isMetAlk && pCO2 !== null) {
+            // PaCO2 increases by 0.7 for every 1 rise in HCO3
+            const riseHCO3 = HCO3 - 24;
+            const expRiseCO2 = 0.7 * riseHCO3;
+            const expPCO2 = 40 + expRiseCO2;
+            // Roughly +/- 5 range is often used clinically for Met Alk, though guideline doesn't specify range
+            const rangeMin = expPCO2 - 5;
+            const rangeMax = expPCO2 + 5;
+
+            compHTML += `<p><strong>Metabolic Alkalosis Check:</strong><br>`;
+            compHTML += `Expected PaCO2: ~${expPCO2.toFixed(1)} mmHg.<br>`;
+            
+            if (pCO2 > rangeMax) {
+                 compHTML += `<span class="acid">Concomitant Respiratory Acidosis</span> (PaCO2 higher than compensation).`;
+            } else if (pCO2 < rangeMin) {
+                 compHTML += `<span class="alk">Concomitant Respiratory Alkalosis</span> (PaCO2 lower than compensation).`;
+            } else {
+                 compHTML += `Appropriate Respiratory Compensation.`;
+            }
+            compHTML += `</p>`;
+        }
+
+        // C. Respiratory Disorders (1-2-3-4-5 Rule)
+        if ((isRespAcid || isRespAlk) && HCO3 !== null) {
+            let expHCO3 = 24;
+            let disorderName = "";
+            
+            // Calculate Expectation
+            if (isRespAcid) {
+                disorderName = "Respiratory Acidosis";
+                const dPaCO2 = pCO2 - 40;
+                if (isChronic) {
+                    // Chronic: +4 HCO3 per 10 mmHg
+                    expHCO3 = 24 + (4 * (dPaCO2 / 10));
+                } else {
+                    // Acute: +1 HCO3 per 10 mmHg
+                    expHCO3 = 24 + (1 * (dPaCO2 / 10));
+                }
+            } else {
+                disorderName = "Respiratory Alkalosis";
+                const dPaCO2 = 40 - pCO2;
+                if (isChronic) {
+                    // Chronic: -5 HCO3 per 10 mmHg
+                    expHCO3 = 24 - (5 * (dPaCO2 / 10));
+                } else {
+                    // Acute: -2 HCO3 per 10 mmHg
+                    expHCO3 = 24 - (2 * (dPaCO2 / 10));
+                }
+            }
+
+            compHTML += `<p><strong>${disorderName} (${isChronic ? 'Chronic' : 'Acute'}) Check:</strong><br>`;
+            compHTML += `Expected HCO3: ~${expHCO3.toFixed(1)} mEq/L.<br>`;
+
+            // Allow +/- 2 margin
+            if (HCO3 > expHCO3 + 2) {
+                compHTML += `<span class="alk">Concomitant Metabolic Alkalosis</span> (HCO3 ${HCO3} > Expected).`;
+                if(!primaryDiagnoses.join().includes("Metabolic Alkalosis")) primaryDiagnoses.push("Concomitant Met. Alkalosis");
+            } else if (HCO3 < expHCO3 - 2) {
+                compHTML += `<span class="acid">Concomitant Metabolic Acidosis</span> (HCO3 ${HCO3} < Expected).`;
+                if(!primaryDiagnoses.join().includes("Metabolic Acidosis")) primaryDiagnoses.push("Concomitant Met. Acidosis");
+            } else {
+                compHTML += `Appropriate Renal Compensation.`;
+            }
+            compHTML += `</p>`;
+        }
+
+        document.getElementById('compAnalysis').innerHTML = compHTML || '<div class="res-note">No specific compensation formula applies (Normal or simple uncompensated).</div>';
+
+        // --- Step 4: Anion Gap ---
+        let agVal = "-";
+        let agCorr = "-";
+        let deltaRatio = "-";
+        let isHAGMA = false;
+
+        if (Na !== null && Cl !== null && HCO3 !== null) {
+            // Formula AG = Na - (Cl + HCO3)
+            const ag = Na - (Cl + HCO3);
+            agVal = ag.toFixed(1);
+            
+            // Correction
+            // Normal Alb ~ 4. For every 1g drop, add 2.5 to AG.
+            let corrAG = ag;
+            if (Alb < 4.0) {
+                const diff = 4.0 - Alb;
+                corrAG = ag + (2.5 * diff);
+            }
+            agCorr = corrAG.toFixed(1);
+            
+            // Interpret AG
+            if (corrAG > 12) { // Using 12 as cutoff from prompt step 4 normal range 8-12
+                isHAGMA = true;
+                // Add HAGMA to diagnosis if not present
+                if (!primaryDiagnoses.some(d => d.includes("HAGMA"))) {
+                    // Replace generic Met Acidosis if present, or add new
+                    const idx = primaryDiagnoses.indexOf("Metabolic Acidosis");
+                    if(idx !== -1) primaryDiagnoses[idx] = "High Anion Gap Metabolic Acidosis (HAGMA)";
+                    else primaryDiagnoses.push("High Anion Gap Metabolic Acidosis (HAGMA)");
+                }
+            } else if (isMetAcid) {
+                // If AG is normal but Met Acid exists -> NAGMA
+                 const idx = primaryDiagnoses.indexOf("Metabolic Acidosis");
+                 if(idx !== -1) primaryDiagnoses[idx] = "Normal Anion Gap Metabolic Acidosis (NAGMA)";
+                 else primaryDiagnoses.push("Normal Anion Gap Metabolic Acidosis (NAGMA)");
+            }
+
+            // --- Step 5: Delta Ratio ---
+            if (isHAGMA) {
+                // Ratio = (AG_calc - 12) / (24 - HCO3)
+                const num = corrAG - 12;
+                const den = 24 - HCO3;
+                
+                if (den <= 0) {
+                    deltaRatio = "> 2.0 (HCO3 ≥ 24)";
+                } else {
+                    const ratio = num / den;
+                    deltaRatio = ratio.toFixed(2);
+                    
+                    let deltaInterp = "";
+                    if (ratio < 0.4) deltaInterp = "HAGMA + NAGMA";
+                    else if (ratio < 0.8) deltaInterp = "HAGMA + NAGMA";
+                    else if (ratio <= 2.0) deltaInterp = "Pure HAGMA";
+                    else deltaInterp = "HAGMA + Metabolic Alkalosis";
+                    
+                    deltaRatio += ` (${deltaInterp})`;
+                    
+                    // Inject delta finding into diagnosis
+                    if (ratio > 2.0 && !primaryDiagnoses.some(d => d.includes("Alkalosis"))) {
+                        primaryDiagnoses.push("Concomitant Metabolic Alkalosis (masked by HAGMA)");
+                    }
+                    if (ratio < 0.8 && !primaryDiagnoses.some(d => d.includes("NAGMA"))) {
+                        primaryDiagnoses.push("Concomitant NAGMA");
+                    }
+                }
+            }
+        }
+
+        document.getElementById('out_ag').innerText = agVal + (isHAGMA ? " (High)" : " (Normal)");
+        document.getElementById('out_ag_corr').innerText = agCorr;
+        document.getElementById('out_delta').innerText = deltaRatio;
+
+        // --- Final Interpretations Display ---
+        if (pH === null || pCO2 === null || HCO3 === null) {
+            document.getElementById('interpretationBox').innerText = "Insufficient Data (Need pH, PaCO2, HCO3)";
+        } else {
+            // Dedupe and display
+            let finalDx = [...new Set(primaryDiagnoses)];
+            if(finalDx.length === 0) finalDx = ["Normal Acid-Base Balance"];
+            document.getElementById('interpretationBox').innerText = finalDx.join(" + ");
+        }
+    }
+</script>
+
+</body>
+</html>
+
